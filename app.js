@@ -148,11 +148,29 @@ function normaliseCategory(item) {
 let itemCache = null;
 let itemCacheLoading = false;
 
-// Categories that contain cash shop items
-const CASH_CATEGORIES = [
-  'Cash',       // pets, chairs, coupons, services (5xxxxxxx)
-  'Equip',      // cash wearables: hats, faces, eyes, overalls, etc (1xxxxxxx)
+// All subcategories that contain cash cosmetics
+const CASH_SUBCATEGORIES = [
+  'Face', 'Eye Decoration', 'Hair', 'Overall', 'Top', 'Bottom',
+  'Cape', 'Gloves', 'Shoes', 'Hat', 'Earrings', 'Ring', 'Pendant',
+  'Weapon', 'Secondary Weapon', 'Android', 'Mechanic Heart',
+  'Face Accessory', 'Eye Accessory',
 ];
+
+async function fetchAllPages(url) {
+  // Fetch up to 10 pages of 5000 items each — covers ~50k items per category
+  const results = [];
+  for (let page = 0; page < 10; page++) {
+    const res = await fetch(`${url}&page=${page}`);
+    if (!res.ok) break;
+    const data = await res.json();
+    const items = Array.isArray(data) ? data : (data.items || []);
+    if (items.length === 0) break;
+    results.push(...items);
+    // If we got fewer than the count, we've hit the end
+    if (items.length < 5000) break;
+  }
+  return results;
+}
 
 async function ensureItemCache() {
   if (itemCache) return itemCache;
@@ -169,44 +187,37 @@ async function ensureItemCache() {
   document.getElementById('db-result-count').textContent = 'Loading item database…';
 
   try {
-    // Fetch cash items AND equip items in parallel, then filter equips to cash-only
-    const [cashRes, equipRes] = await Promise.all([
-      fetch(`${API_BASE}/item?overallCategory=Cash&count=2000`),
-      fetch(`${API_BASE}/item?overallCategory=Equip&count=5000`),
+    // Fetch all categories in parallel with max count
+    const [cashItems, equipItems] = await Promise.all([
+      fetchAllPages(`${API_BASE}/item?overallCategory=Cash&count=5000`),
+      fetchAllPages(`${API_BASE}/item?overallCategory=Equip&count=5000`),
     ]);
-    if (!cashRes.ok) throw new Error(`API returned ${cashRes.status}`);
-    if (!equipRes.ok) throw new Error(`API returned ${equipRes.status}`);
 
-    const cashData = await cashRes.json();
-    const equipData = await equipRes.json();
-
-    const cashItems = Array.isArray(cashData) ? cashData : (cashData.items || []);
-    const equipItems = Array.isArray(equipData) ? equipData : (equipData.items || []);
-
-    // Cash equips have typeInfo.cash === true, or their subCategory is a cosmetic slot
-    const CASH_EQUIP_CATS = new Set([
-      'face', 'eye decoration', 'hair', 'overall', 'top', 'bottom',
-      'cape', 'glove', 'shoes', 'hat', 'earring', 'ring', 'pendant',
-      'weapon', 'secondary weapon', 'android', 'mechanic heart',
-      'face accessory', 'eye accessory',
+    // For equips, keep only cash/cosmetic items
+    const EQUIP_CASH_SUBS = new Set([
+      'face', 'eye decoration', 'eye accessory', 'face accessory',
+      'hair', 'overall', 'top', 'bottom', 'cape', 'gloves', 'shoes',
+      'hat', 'earrings', 'ring', 'pendant', 'weapon', 'secondary weapon',
+      'android', 'mechanic heart',
     ]);
-    const cashEquips = equipItems.filter(item => {
-      if (item.cash === true || item.isCash === true) return true;
+
+    const filteredEquips = equipItems.filter(item => {
+      if (item.cash || item.isCash) return true;
       const sub = (item.typeInfo?.subCategory || '').toLowerCase();
-      const cat = (item.typeInfo?.category || '').toLowerCase();
-      return CASH_EQUIP_CATS.has(sub) || CASH_EQUIP_CATS.has(cat);
+      return EQUIP_CASH_SUBS.has(sub);
     });
 
-    // Merge, deduplicate by id
+    // Merge and deduplicate
     const seen = new Set();
-    const merged = [...cashItems, ...cashEquips].filter(item => {
+    const merged = [...cashItems, ...filteredEquips].filter(item => {
       const id = item.id || item.itemId;
-      if (seen.has(id)) return false;
+      if (!id || seen.has(id)) return false;
       seen.add(id);
-      return true;
+      return !!item.name; // must have a name
     });
 
     itemCache = merged;
+    console.log(`Item cache loaded: ${itemCache.length} items`);
   } catch (err) {
     itemCacheLoading = false;
     throw err;
