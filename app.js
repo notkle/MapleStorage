@@ -148,23 +148,6 @@ function normaliseCategory(item) {
 let itemCache = null;
 let itemCacheLoading = false;
 
-async function fetchCategory(overallCategory, subCategory = '') {
-  const results = [];
-  const PAGE_SIZE = 1000;
-  for (let offset = 0; offset < 50000; offset += PAGE_SIZE) {
-    let url = `${API_BASE}/item?overallCategory=${encodeURIComponent(overallCategory)}&count=${PAGE_SIZE}&offset=${offset}`;
-    if (subCategory) url += `&category=${encodeURIComponent(subCategory)}`;
-    const res = await fetch(url);
-    if (!res.ok) break;
-    const data = await res.json();
-    const items = Array.isArray(data) ? data : (data.items || []);
-    if (items.length === 0) break;
-    results.push(...items);
-    if (items.length < PAGE_SIZE) break; // last page
-  }
-  return results;
-}
-
 async function ensureItemCache() {
   if (itemCache) return itemCache;
   if (itemCacheLoading) {
@@ -180,32 +163,29 @@ async function ensureItemCache() {
   document.getElementById('db-result-count').textContent = 'Loading item database…';
 
   try {
-    // Fetch all equip subcategories in parallel to bypass the 5000 item cap
-    const equipSubs = [
-      'Hat', 'Face', 'Eye Decoration', 'Earring', 'Top', 'Overall',
-      'Bottom', 'Shoes', 'Glove', 'Cape', 'Ring', 'Pendant',
-      'Weapon', 'Secondary Weapon', 'Emblem', 'Badge', 'Medal',
-      'Shoulder', 'Pocket', 'Belt', 'Android', 'Mechanic Heart',
-    ];
-
-    const [cashItems, ...equipBatches] = await Promise.all([
-      fetchCategory('Cash'),
-      ...equipSubs.map(sub => fetchCategory('Equip', sub)),
+    const [cashRes, equipRes] = await Promise.all([
+      fetch(`${API_BASE}/item?overallCategory=Cash&count=99999`),
+      fetch(`${API_BASE}/item?overallCategory=Equip&count=99999`),
     ]);
+    if (!cashRes.ok) throw new Error(`API returned ${cashRes.status}`);
+    if (!equipRes.ok) throw new Error(`API returned ${equipRes.status}`);
 
-    const equipItems = equipBatches.flat();
+    const cashData = await cashRes.json();
+    const equipData = await equipRes.json();
 
-    // Merge and deduplicate
+    const cashItems = Array.isArray(cashData) ? cashData : [];
+    const equipItems = Array.isArray(equipData) ? equipData : [];
+
+    // Deduplicate by id
     const seen = new Set();
-    const merged = [...cashItems, ...equipItems].filter(item => {
+    itemCache = [...cashItems, ...equipItems].filter(item => {
       const id = item.id || item.itemId;
       if (!id || seen.has(id)) return false;
       seen.add(id);
       return !!item.name;
     });
 
-    itemCache = merged;
-    console.log(`Item cache loaded: ${itemCache.length} items (cash: ${cashItems.length}, equip: ${equipItems.length})`);
+    console.log(`Item cache loaded: ${itemCache.length} (cash: ${cashItems.length}, equip: ${equipItems.length})`);
   } catch (err) {
     itemCacheLoading = false;
     throw err;
