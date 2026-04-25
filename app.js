@@ -144,11 +144,43 @@ function normaliseCategory(item) {
 }
 
 // ─── SEARCH ──────────────────────────────────────────────────────────────────
+// ─── ITEM CACHE ───────────────────────────────────────────────────────────────
+let itemCache = null; // all cash items, loaded once
+let itemCacheLoading = false;
+
+async function ensureItemCache() {
+  if (itemCache) return itemCache;
+  if (itemCacheLoading) {
+    // Wait for in-progress load
+    await new Promise(resolve => {
+      const interval = setInterval(() => {
+        if (!itemCacheLoading) { clearInterval(interval); resolve(); }
+      }, 100);
+    });
+    return itemCache;
+  }
+  itemCacheLoading = true;
+  document.getElementById('spinner').classList.add('show');
+  document.getElementById('db-result-count').textContent = 'Loading item database…';
+  try {
+    const res = await fetch(`${API_BASE}/item?overallCategory=Cash&count=1500`);
+    if (!res.ok) throw new Error(`API returned ${res.status}`);
+    const data = await res.json();
+    itemCache = Array.isArray(data) ? data : (data.items || []);
+  } catch (err) {
+    itemCacheLoading = false;
+    throw err;
+  }
+  itemCacheLoading = false;
+  document.getElementById('spinner').classList.remove('show');
+  return itemCache;
+}
+
 function onSearchInput() {
   clearTimeout(searchTimer);
   const q = document.getElementById('db-search').value.trim();
   if (!q) { resetSearch(); return; }
-  searchTimer = setTimeout(() => doSearch(q), 400);
+  searchTimer = setTimeout(() => doSearch(q), 300);
 }
 
 function resetSearch() {
@@ -161,19 +193,23 @@ function resetSearch() {
 
 async function doSearch(q) {
   currentQuery = q;
-  document.getElementById('spinner').classList.add('show');
   document.getElementById('api-error').style.display = 'none';
-  document.getElementById('db-result-count').textContent = 'Searching…';
 
   try {
-    const url = `${API_BASE}/item?overallCategory=Cash&name=${encodeURIComponent(q)}&count=25`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`API returned ${res.status}`);
-    const data = await res.json();
+    const allItems = await ensureItemCache();
     if (currentQuery !== q) return;
-    document.getElementById('spinner').classList.remove('show');
-    const items = Array.isArray(data) ? data : (data.items || []);
-    renderResults(items, q);
+
+    const ql = q.toLowerCase();
+    const isId = /^\d+$/.test(q);
+
+    const results = allItems.filter(item => {
+      const id = String(item.id || item.itemId || '');
+      const name = (item.name || item.description?.name || '').toLowerCase();
+      if (isId) return id.startsWith(q);
+      return name.includes(ql);
+    }).slice(0, 30);
+
+    renderResults(results, q);
   } catch (err) {
     if (currentQuery !== q) return;
     document.getElementById('spinner').classList.remove('show');
@@ -415,6 +451,8 @@ document.getElementById('modal').addEventListener('click', e => {
 loadStorage();
 updateStats();
 renderSimSlots();
+// Pre-warm the item cache in the background so first search is instant
+ensureItemCache().catch(() => {});
 
 // ─── SIM ─────────────────────────────────────────────────────────────────────
 
@@ -561,12 +599,16 @@ function onSimSearchInput() {
 async function doSimSearch(q) {
   document.getElementById('sim-spinner').classList.add('show');
   try {
-    const url = `${API_BASE}/item?overallCategory=Cash&name=${encodeURIComponent(q)}&count=15`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`API ${res.status}`);
-    const data = await res.json();
+    const allItems = await ensureItemCache();
     document.getElementById('sim-spinner').classList.remove('show');
-    const items = Array.isArray(data) ? data : (data.items || []);
+    const ql = q.toLowerCase();
+    const isId = /^\d+$/.test(q);
+    const items = allItems.filter(item => {
+      const id = String(item.id || item.itemId || '');
+      const name = (item.name || item.description?.name || '').toLowerCase();
+      if (isId) return id.startsWith(q);
+      return name.includes(ql);
+    }).slice(0, 15);
     renderSimResults(items);
   } catch {
     document.getElementById('sim-spinner').classList.remove('show');
