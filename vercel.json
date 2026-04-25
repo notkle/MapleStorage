@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/maplestory/(.*)",
-      "destination": "https://maplestory.io/api/$1"
+      "destination": "https://labs.maplestory.io/api/$1"
     }
   ]
 }

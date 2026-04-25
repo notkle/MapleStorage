@@ -40,7 +40,7 @@ const CATEGORY_ORDER = [
   'Other',
 ];
 
-const API_BASE = '/api/maplestory/GMS/latest';
+const API_BASE = '/api/maplestory/gms/latest';
 let storage = [];
 let pendingItem = null;
 let selectedClass = null;
