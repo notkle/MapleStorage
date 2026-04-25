@@ -148,26 +148,19 @@ function normaliseCategory(item) {
 let itemCache = null;
 let itemCacheLoading = false;
 
-// All subcategories that contain cash cosmetics
-const CASH_SUBCATEGORIES = [
-  'Face', 'Eye Decoration', 'Hair', 'Overall', 'Top', 'Bottom',
-  'Cape', 'Gloves', 'Shoes', 'Hat', 'Earrings', 'Ring', 'Pendant',
-  'Weapon', 'Secondary Weapon', 'Android', 'Mechanic Heart',
-  'Face Accessory', 'Eye Accessory',
-];
-
-async function fetchAllPages(url) {
-  // Fetch up to 10 pages of 5000 items each — covers ~50k items per category
+async function fetchCategory(overallCategory, subCategory = '') {
   const results = [];
-  for (let page = 0; page < 10; page++) {
-    const res = await fetch(`${url}&page=${page}`);
+  const PAGE_SIZE = 1000;
+  for (let offset = 0; offset < 50000; offset += PAGE_SIZE) {
+    let url = `${API_BASE}/item?overallCategory=${encodeURIComponent(overallCategory)}&count=${PAGE_SIZE}&offset=${offset}`;
+    if (subCategory) url += `&category=${encodeURIComponent(subCategory)}`;
+    const res = await fetch(url);
     if (!res.ok) break;
     const data = await res.json();
     const items = Array.isArray(data) ? data : (data.items || []);
     if (items.length === 0) break;
     results.push(...items);
-    // If we got fewer than the count, we've hit the end
-    if (items.length < 5000) break;
+    if (items.length < PAGE_SIZE) break; // last page
   }
   return results;
 }
@@ -187,13 +180,22 @@ async function ensureItemCache() {
   document.getElementById('db-result-count').textContent = 'Loading item database…';
 
   try {
-    // Fetch all categories in parallel with max count
-    const [cashItems, equipItems] = await Promise.all([
-      fetchAllPages(`${API_BASE}/item?overallCategory=Cash&count=5000`),
-      fetchAllPages(`${API_BASE}/item?overallCategory=Equip&count=5000`),
+    // Fetch all equip subcategories in parallel to bypass the 5000 item cap
+    const equipSubs = [
+      'Hat', 'Face', 'Eye Decoration', 'Earring', 'Top', 'Overall',
+      'Bottom', 'Shoes', 'Glove', 'Cape', 'Ring', 'Pendant',
+      'Weapon', 'Secondary Weapon', 'Emblem', 'Badge', 'Medal',
+      'Shoulder', 'Pocket', 'Belt', 'Android', 'Mechanic Heart',
+    ];
+
+    const [cashItems, ...equipBatches] = await Promise.all([
+      fetchCategory('Cash'),
+      ...equipSubs.map(sub => fetchCategory('Equip', sub)),
     ]);
 
-    // Merge and deduplicate — no filtering, load everything
+    const equipItems = equipBatches.flat();
+
+    // Merge and deduplicate
     const seen = new Set();
     const merged = [...cashItems, ...equipItems].filter(item => {
       const id = item.id || item.itemId;
@@ -203,7 +205,7 @@ async function ensureItemCache() {
     });
 
     itemCache = merged;
-    console.log(`Item cache loaded: ${itemCache.length} items`);
+    console.log(`Item cache loaded: ${itemCache.length} items (cash: ${cashItems.length}, equip: ${equipItems.length})`);
   } catch (err) {
     itemCacheLoading = false;
     throw err;
