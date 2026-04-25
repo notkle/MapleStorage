@@ -145,13 +145,18 @@ function normaliseCategory(item) {
 
 // ─── SEARCH ──────────────────────────────────────────────────────────────────
 // ─── ITEM CACHE ───────────────────────────────────────────────────────────────
-let itemCache = null; // all cash items, loaded once
+let itemCache = null;
 let itemCacheLoading = false;
+
+// Categories that contain cash shop items
+const CASH_CATEGORIES = [
+  'Cash',       // pets, chairs, coupons, services (5xxxxxxx)
+  'Equip',      // cash wearables: hats, faces, eyes, overalls, etc (1xxxxxxx)
+];
 
 async function ensureItemCache() {
   if (itemCache) return itemCache;
   if (itemCacheLoading) {
-    // Wait for in-progress load
     await new Promise(resolve => {
       const interval = setInterval(() => {
         if (!itemCacheLoading) { clearInterval(interval); resolve(); }
@@ -162,17 +167,54 @@ async function ensureItemCache() {
   itemCacheLoading = true;
   document.getElementById('spinner').classList.add('show');
   document.getElementById('db-result-count').textContent = 'Loading item database…';
+
   try {
-    const res = await fetch(`${API_BASE}/item?overallCategory=Cash&count=1500`);
-    if (!res.ok) throw new Error(`API returned ${res.status}`);
-    const data = await res.json();
-    itemCache = Array.isArray(data) ? data : (data.items || []);
+    // Fetch cash items AND equip items in parallel, then filter equips to cash-only
+    const [cashRes, equipRes] = await Promise.all([
+      fetch(`${API_BASE}/item?overallCategory=Cash&count=2000`),
+      fetch(`${API_BASE}/item?overallCategory=Equip&count=5000`),
+    ]);
+    if (!cashRes.ok) throw new Error(`API returned ${cashRes.status}`);
+    if (!equipRes.ok) throw new Error(`API returned ${equipRes.status}`);
+
+    const cashData = await cashRes.json();
+    const equipData = await equipRes.json();
+
+    const cashItems = Array.isArray(cashData) ? cashData : (cashData.items || []);
+    const equipItems = Array.isArray(equipData) ? equipData : (equipData.items || []);
+
+    // Cash equips have typeInfo.cash === true, or their subCategory is a cosmetic slot
+    const CASH_EQUIP_CATS = new Set([
+      'face', 'eye decoration', 'hair', 'overall', 'top', 'bottom',
+      'cape', 'glove', 'shoes', 'hat', 'earring', 'ring', 'pendant',
+      'weapon', 'secondary weapon', 'android', 'mechanic heart',
+      'face accessory', 'eye accessory',
+    ]);
+    const cashEquips = equipItems.filter(item => {
+      if (item.cash === true || item.isCash === true) return true;
+      const sub = (item.typeInfo?.subCategory || '').toLowerCase();
+      const cat = (item.typeInfo?.category || '').toLowerCase();
+      return CASH_EQUIP_CATS.has(sub) || CASH_EQUIP_CATS.has(cat);
+    });
+
+    // Merge, deduplicate by id
+    const seen = new Set();
+    const merged = [...cashItems, ...cashEquips].filter(item => {
+      const id = item.id || item.itemId;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+
+    itemCache = merged;
   } catch (err) {
     itemCacheLoading = false;
     throw err;
   }
+
   itemCacheLoading = false;
   document.getElementById('spinner').classList.remove('show');
+  document.getElementById('db-result-count').textContent = '';
   return itemCache;
 }
 
