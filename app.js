@@ -193,27 +193,13 @@ async function ensureItemCache() {
       fetchAllPages(`${API_BASE}/item?overallCategory=Equip&count=5000`),
     ]);
 
-    // For equips, keep only cash/cosmetic items
-    const EQUIP_CASH_SUBS = new Set([
-      'face', 'eye decoration', 'eye accessory', 'face accessory',
-      'hair', 'overall', 'top', 'bottom', 'cape', 'gloves', 'shoes',
-      'hat', 'earrings', 'ring', 'pendant', 'weapon', 'secondary weapon',
-      'android', 'mechanic heart',
-    ]);
-
-    const filteredEquips = equipItems.filter(item => {
-      if (item.cash || item.isCash) return true;
-      const sub = (item.typeInfo?.subCategory || '').toLowerCase();
-      return EQUIP_CASH_SUBS.has(sub);
-    });
-
-    // Merge and deduplicate
+    // Merge and deduplicate — no filtering, load everything
     const seen = new Set();
-    const merged = [...cashItems, ...filteredEquips].filter(item => {
+    const merged = [...cashItems, ...equipItems].filter(item => {
       const id = item.id || item.itemId;
       if (!id || seen.has(id)) return false;
       seen.add(id);
-      return !!item.name; // must have a name
+      return !!item.name;
     });
 
     itemCache = merged;
