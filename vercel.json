@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/maplestory/(.*)",
+      "destination": "https://maplestory.io/api/$1"
+    }
+  ]
+}
