@@ -228,7 +228,7 @@ async function doSearch(q) {
       const name = (item.name || item.description?.name || '').toLowerCase();
       if (isId) return id.startsWith(q);
       return name.includes(ql);
-    }).slice(0, 30);
+    });
 
     renderResults(results, q);
   } catch (err) {
@@ -629,7 +629,7 @@ async function doSimSearch(q) {
       const name = (item.name || item.description?.name || '').toLowerCase();
       if (isId) return id.startsWith(q);
       return name.includes(ql);
-    }).slice(0, 15);
+    });
     renderSimResults(items);
   } catch {
     document.getElementById('sim-spinner').classList.remove('show');
