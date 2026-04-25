@@ -228,7 +228,7 @@ async function doSearch(q) {
       const name = (item.name || item.description?.name || '').toLowerCase();
       if (isId) return id.startsWith(q);
       return name.includes(ql);
-    });
+    }).slice(0, 50);
 
     renderResults(results, q);
   } catch (err) {
@@ -261,8 +261,7 @@ function renderResults(items, q) {
   empty.style.display = 'none';
 
   container.innerHTML = `<div class="db-header">
-    <span>Live Results — maplestory.io</span>
-    <span class="api-badge">Live API</span>
+    <span>Results — maplestory.io</span>
   </div>` + items.map(item => {
     const id = item.id || item.itemId;
     const name = item.name || item.description?.name || 'Unknown Item';
@@ -504,12 +503,28 @@ let simEquipped = {}; // slotId → { id, name, iconUrl }
 let simSearchTimer = null;
 
 function slotForItem(item) {
-  const sub = (item.typeInfo?.subCategory || item.itemCategory || '').toLowerCase();
-  const cat = (item.typeInfo?.category || '').toLowerCase();
-  const combined = sub + ' ' + cat;
-  for (const slot of SIM_SLOTS) {
-    if (slot.cats.some(c => combined.includes(c))) return slot.id;
-  }
+  // Pull every possible field the API might put the category in
+  const sub = (
+    item.typeInfo?.subCategory ||
+    item.typeInfo?.category ||
+    item.itemCategory ||
+    item.category ||
+    item.subCategory ||
+    ''
+  ).toLowerCase();
+
+  if (sub.includes('face')) return 'Face';
+  if (sub.includes('eye')) return 'Eye';
+  if (sub.includes('hat') || sub.includes('helm') || sub.includes('cap')) return 'Hat';
+  if (sub.includes('top') || sub.includes('shirt') || sub.includes('coat')) return 'Top';
+  if (sub.includes('bottom') || sub.includes('pants')) return 'Bottom';
+  if (sub.includes('overall') || sub.includes('suit')) return 'Overall';
+  if (sub.includes('shoe') || sub.includes('boot')) return 'Shoes';
+  if (sub.includes('glove')) return 'Gloves';
+  if (sub.includes('cape')) return 'Cape';
+  if (sub.includes('earring')) return 'Earring';
+  if (sub.includes('secondary')) return 'Weapon'; // secondary maps to weapon slot
+  if (sub.includes('weapon') || sub.includes('sword') || sub.includes('staff') || sub.includes('wand') || sub.includes('bow') || sub.includes('gun') || sub.includes('knuckle') || sub.includes('claw') || sub.includes('axe') || sub.includes('spear') || sub.includes('pole') || sub.includes('dagger') || sub.includes('katana') || sub.includes('fan')) return 'Weapon';
   return null;
 }
 
@@ -629,7 +644,7 @@ async function doSimSearch(q) {
       const name = (item.name || item.description?.name || '').toLowerCase();
       if (isId) return id.startsWith(q);
       return name.includes(ql);
-    });
+    }).slice(0, 50);
     renderSimResults(items);
   } catch {
     document.getElementById('sim-spinner').classList.remove('show');
