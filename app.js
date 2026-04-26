@@ -37,8 +37,7 @@ function saveStorage() {
   try { localStorage.setItem('maplestorage_v2', JSON.stringify(storage)); } catch {}
 }
 function updateStats() {
-  const total = storage.reduce((sum, i) => sum + (i.qty || 1), 0);
-  document.getElementById('total-count').textContent = total;
+  document.getElementById('total-count').textContent = storage.length;
 }
 
 // ─── ICON HELPERS ─────────────────────────────────────────────────────────────
@@ -277,15 +276,10 @@ function confirmAdd() {
   if (!pendingItem || !selectedClass) return;
   const cls = CLASSES.find(c => c.id === selectedClass);
   const qty = Math.max(1, parseInt(document.getElementById('qty-input').value) || 1);
-  const existing = storage.find(s => s.itemId === pendingItem.id);
-  if (existing) {
-    existing.qty = (existing.qty || 1) + qty;
-    existing.classId = selectedClass;
-    showToast(`Updated — now ×${existing.qty} in ${cls.name}`, 'success');
-  } else {
-    storage.push({ itemId: pendingItem.id, itemName: pendingItem.name, itemCategory: pendingItem.category, iconUrl: pendingItem.iconUrl, classId: selectedClass, qty, addedAt: Date.now() });
-    showToast(`Added ×${qty} to ${cls.name} storage`, 'success');
+  for (let i = 0; i < qty; i++) {
+    storage.push({ itemId: pendingItem.id, itemName: pendingItem.name, itemCategory: pendingItem.category, iconUrl: pendingItem.iconUrl, classId: selectedClass, addedAt: Date.now() });
   }
+  showToast(`Added to ${cls.name} storage`, 'success');
   saveStorage(); updateStats(); closeModal();
   const q = document.getElementById('db-search').value.trim();
   if (q) doSearch(q);
@@ -296,7 +290,7 @@ function confirmAdd() {
 function renderStorage() {
   const q = document.getElementById('storage-search').value.trim().toLowerCase();
   const cf = document.getElementById('storage-class-filter').value;
-  let items = [...storage];
+  let items = storage.map((item, idx) => ({ ...item, _idx: idx }));
   if (q) items = items.filter(i => i.itemName.toLowerCase().includes(q) || String(i.itemId).includes(q));
   if (cf) items = items.filter(i => i.classId === cf);
   const list = document.getElementById('storage-list');
@@ -319,16 +313,14 @@ function renderStorage() {
   list.innerHTML = sortedCats.map(cat => {
     const catItems = grouped[cat];
     const rows = catItems.map(item => {
-      const qtyBadge = `<span class="item-qty-badge ${(item.qty || 1) > 1 ? 'multi' : ''}">×${item.qty || 1}</span>`;
       return `<div class="storage-item">
         ${iconHTML(item)}
         <div class="item-info">
           <div class="item-name">${item.itemName}</div>
           <div class="item-id">#${item.itemId}</div>
         </div>
-        ${qtyBadge}
         ${classBadgeHTML(item.classId)}
-        <button class="remove-btn" onclick="removeItem(${item.itemId})" title="Remove">✕</button>
+        <button class="remove-btn" onclick="removeItem(${item._idx})" title="Remove">✕</button>
       </div>`;
     }).join('');
     return `<div class="storage-category-group">
@@ -341,8 +333,8 @@ function renderStorage() {
   }).join('');
 }
 
-function removeItem(itemId) {
-  storage = storage.filter(i => i.itemId !== itemId);
+function removeItem(idx) {
+  storage.splice(idx, 1);
   saveStorage(); updateStats(); renderStorage(); populateClassFilter();
   showToast('Item removed');
 }
