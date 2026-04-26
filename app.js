@@ -470,9 +470,8 @@ function populateClassFilter() {
 function switchTab(tab) {
   document.getElementById('tab-add').style.display = tab === 'add' ? 'block' : 'none';
   document.getElementById('tab-storage').style.display = tab === 'storage' ? 'block' : 'none';
-  document.querySelectorAll('.tab').forEach((t, i) =>
-    t.classList.toggle('active', (i === 0) === (tab === 'add'))
-  );
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab')[tab === 'add' ? 0 : 1].classList.add('active');
   if (tab === 'storage') { populateClassFilter(); renderStorage(); }
 }
 
