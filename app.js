@@ -200,7 +200,9 @@ async function ensureItemCache() {
 function onSearchInput() {
   clearTimeout(searchTimer);
   const q = document.getElementById('db-search').value.trim();
-  if (!q) { resetSearch(); return; }
+  const cat = document.getElementById('db-category-filter').value;
+  // Allow browsing by category even with no search text
+  if (!q && !cat) { resetSearch(); return; }
   searchTimer = setTimeout(() => doSearch(q), 300);
 }
 
@@ -222,12 +224,18 @@ async function doSearch(q) {
 
     const ql = q.toLowerCase();
     const isId = /^\d+$/.test(q);
+    const categoryFilter = document.getElementById('db-category-filter').value;
 
-    const results = allItems.filter(item => {
+    let results = allItems.filter(item => {
       const id = String(item.id || item.itemId || '');
       const name = (item.name || item.description?.name || '').toLowerCase();
-      if (isId) return id.startsWith(q);
-      return name.includes(ql);
+      const matchesQuery = q === '' ? true : (isId ? id.startsWith(q) : name.includes(ql));
+      if (!matchesQuery) return false;
+      if (categoryFilter) {
+        const cat = normaliseCategory(item);
+        return cat === categoryFilter;
+      }
+      return true;
     }).slice(0, 50);
 
     renderResults(results, q);
@@ -251,7 +259,7 @@ function renderResults(items, q) {
   if (!items.length) {
     container.style.display = 'none';
     empty.style.display = 'block';
-    empty.innerHTML = `<div class="db-empty-icon">🔍</div>No cash items found for "<strong>${q}</strong>".`;
+    empty.innerHTML = `<div class="db-empty-icon">🔍</div>No items found for "<strong>${q}</strong>".`;
     countEl.textContent = '';
     return;
   }
@@ -260,9 +268,12 @@ function renderResults(items, q) {
   container.style.display = 'block';
   empty.style.display = 'none';
 
+  // Store items in a lookup so onclick can reference by index safely
+  window._searchResults = items;
+
   container.innerHTML = `<div class="db-header">
     <span>Results — maplestory.io</span>
-  </div>` + items.map(item => {
+  </div>` + items.map((item, idx) => {
     const id = item.id || item.itemId;
     const name = item.name || item.description?.name || 'Unknown Item';
     const category = normaliseCategory(item);
@@ -273,17 +284,30 @@ function renderResults(items, q) {
       <div class="item-info">
         <div class="item-name">${name}</div>
         <div class="item-id">#${id} &nbsp;·&nbsp; <span style="color:var(--text-dim)">${category}</span></div>
-        ${owned ? `<div style="margin-top:3px">${classBadgeHTML(owned.classId)}</div>` : ''}
       </div>
-      ${owned
-        ? `<div class="add-btn owned">✓ Stored ×${owned.qty || 1}</div>`
-        : `<button class="add-btn" onclick='openModal(${JSON.stringify({ id, name, category, iconUrl: iconUrl(id) })})'>+ Add</button>`
-      }
+      <button class="add-btn" onclick="openModalByIndex(${idx})">+ Add</button>
     </div>`;
   }).join('');
 }
 
 // ─── MODAL ───────────────────────────────────────────────────────────────────
+function openModalByIndex(idx) {
+  const item = window._searchResults[idx];
+  if (!item) return;
+  const id = item.id || item.itemId;
+  const name = item.name || item.description?.name || 'Unknown Item';
+  const category = normaliseCategory(item);
+  openModal({ id, name, category, iconUrl: iconUrl(id) });
+}
+
+function openSimByIndex(idx) {
+  const item = window._simResults[idx];
+  if (!item) return;
+  const id = item.id || item.itemId;
+  const name = item.name || 'Unknown';
+  const category = normaliseCategory(item);
+  equipItem({ id, name, iconUrl: iconUrl(id), itemCategory: category, slotId: slotForItem(item) });
+}
 function openModal(item) {
   pendingItem = item;
   selectedClass = null;
@@ -655,14 +679,14 @@ function renderSimResults(items) {
   const container = document.getElementById('sim-search-results');
   if (!items.length) { container.style.display = 'none'; return; }
 
+  window._simResults = items;
   container.style.display = 'block';
-  container.innerHTML = items.map(item => {
+  container.innerHTML = items.map((item, idx) => {
     const id = item.id || item.itemId;
     const name = item.name || 'Unknown';
     const slotId = slotForItem(item);
     const category = normaliseCategory(item);
     const iUrl = iconUrl(id);
-    const itemData = JSON.stringify({ id, name, iconUrl: iUrl, slotId, typeInfo: item.typeInfo, itemCategory: category });
     return `<div class="sim-result-item">
       ${iconHTML({ id, iconUrl: iUrl }, 32, 26)}
       <div>
@@ -670,7 +694,7 @@ function renderSimResults(items) {
         <div class="sim-result-meta">#${id} · ${category}</div>
       </div>
       ${slotId
-        ? `<button class="sim-equip-btn" onclick='equipItem(${itemData})'>Equip</button>`
+        ? `<button class="sim-equip-btn" onclick="openSimByIndex(${idx})">Equip</button>`
         : `<span style="font-size:0.7rem;color:var(--text-dim);margin-left:auto">Not wearable</span>`
       }
     </div>`;

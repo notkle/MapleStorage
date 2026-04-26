@@ -34,9 +34,34 @@
     <div class="search-row">
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
-        <input type="text" id="db-search" placeholder="Search cash items by name (e.g. hat, pet, chair)..." oninput="onSearchInput()" autocomplete="off">
+        <input type="text" id="db-search" placeholder="Search cash items by name or ID..." oninput="onSearchInput()" autocomplete="off">
         <div class="spinner" id="spinner"></div>
       </div>
+      <select class="filter-select" id="db-category-filter" onchange="onSearchInput()">
+        <option value="">All categories</option>
+        <option value="Hat">Hat</option>
+        <option value="Face Decoration">Face Decoration</option>
+        <option value="Eye Decoration">Eye Decoration</option>
+        <option value="Hair">Hair</option>
+        <option value="Overall">Overall</option>
+        <option value="Top">Top</option>
+        <option value="Bottom">Bottom</option>
+        <option value="Cape">Cape</option>
+        <option value="Gloves">Gloves</option>
+        <option value="Shoes">Shoes</option>
+        <option value="Earrings">Earrings</option>
+        <option value="Ring">Ring</option>
+        <option value="Pendant">Pendant</option>
+        <option value="Weapon">Weapon</option>
+        <option value="Secondary Weapon">Secondary Weapon</option>
+        <option value="Pet">Pet</option>
+        <option value="Pet Equip">Pet Equip</option>
+        <option value="Chair">Chair</option>
+        <option value="Coupon">Coupon</option>
+        <option value="Service">Service</option>
+        <option value="Convenience">Convenience</option>
+        <option value="Other">Other</option>
+      </select>
     </div>
     <div id="api-error" class="api-error" style="display:none;"></div>
     <div id="db-result-count" class="result-count"></div>
