@@ -260,25 +260,11 @@ function closeModal() {
   pendingItem = null; selectedClass = null;
 }
 
-function changeQty(delta) {
-  const input = document.getElementById('qty-input');
-  input.value = Math.max(1, Math.min(999, (parseInt(input.value) || 1) + delta));
-}
-
-function clampQty() {
-  const input = document.getElementById('qty-input');
-  const val = parseInt(input.value);
-  if (isNaN(val) || val < 1) input.value = 1;
-  if (val > 999) input.value = 999;
-}
 
 function confirmAdd() {
   if (!pendingItem || !selectedClass) return;
   const cls = CLASSES.find(c => c.id === selectedClass);
-  const qty = Math.max(1, parseInt(document.getElementById('qty-input').value) || 1);
-  for (let i = 0; i < qty; i++) {
-    storage.push({ itemId: pendingItem.id, itemName: pendingItem.name, itemCategory: pendingItem.category, iconUrl: pendingItem.iconUrl, classId: selectedClass, addedAt: Date.now() });
-  }
+  storage.push({ itemId: pendingItem.id, itemName: pendingItem.name, itemCategory: pendingItem.category, iconUrl: pendingItem.iconUrl, classId: selectedClass, addedAt: Date.now() });
   showToast(`Added to ${cls.name} storage`, 'success');
   saveStorage(); updateStats(); closeModal();
   const q = document.getElementById('db-search').value.trim();
