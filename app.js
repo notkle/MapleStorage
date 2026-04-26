@@ -243,7 +243,6 @@ function openModal(item) {
       <div class="item-name">${item.name}</div>
       <div class="item-id">#${item.id} · ${item.category}</div>
     </div>`;
-  document.getElementById('qty-input').value = 1;
   document.getElementById('btn-confirm').disabled = true;
   document.getElementById('class-grid').innerHTML = CLASSES.map(cls => classBtnHTML(cls, false)).join('');
   document.getElementById('modal').classList.add('open');
