@@ -470,11 +470,10 @@ function populateClassFilter() {
 function switchTab(tab) {
   document.getElementById('tab-add').style.display = tab === 'add' ? 'block' : 'none';
   document.getElementById('tab-storage').style.display = tab === 'storage' ? 'block' : 'none';
-  document.getElementById('tab-sim').style.display = tab === 'sim' ? 'block' : 'none';
-  const tabs = ['add', 'storage', 'sim'];
-  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', tabs[i] === tab));
+  document.querySelectorAll('.tab').forEach((t, i) =>
+    t.classList.toggle('active', (i === 0) === (tab === 'add'))
+  );
   if (tab === 'storage') { populateClassFilter(); renderStorage(); }
-  if (tab === 'sim') { renderSimSlots(); }
 }
 
 // ─── TOAST ───────────────────────────────────────────────────────────────────
@@ -495,6 +494,12 @@ document.getElementById('modal').addEventListener('click', e => {
 loadStorage();
 updateStats();
 renderSimSlots();
+// Pre-warm the item cache in the background so first search is instant
+ensureItemCache().catch(() => {});
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+loadStorage();
+updateStats();
 // Pre-warm the item cache in the background so first search is instant
 ensureItemCache().catch(() => {});
 
@@ -595,7 +600,6 @@ function updateCharacter() {
   img.src = url;
 }
 
-function renderSimSlots() {
   const grid = document.getElementById('sim-slots-grid');
   grid.innerHTML = SIM_SLOTS.map(slot => {
     const eq = simEquipped[slot.id];
@@ -620,7 +624,6 @@ function equipItem(item) {
     return;
   }
   simEquipped[slotId] = { id: item.id, name: item.name, iconUrl: item.iconUrl || iconUrl(item.id) };
-  renderSimSlots();
   updateCharacter();
   // Clear search
   document.getElementById('sim-search').value = '';
@@ -629,7 +632,6 @@ function equipItem(item) {
 
 function unequipSlot(slotId) {
   delete simEquipped[slotId];
-  renderSimSlots();
   if (Object.keys(simEquipped).length > 0) {
     updateCharacter();
   } else {
@@ -642,7 +644,6 @@ function unequipSlot(slotId) {
 
 function clearSim() {
   simEquipped = {};
-  renderSimSlots();
   const img = document.getElementById('sim-character-img');
   img.style.display = 'none';
   document.getElementById('sim-character-placeholder').style.display = 'block';

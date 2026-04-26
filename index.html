@@ -26,7 +26,6 @@
   <div class="tabs">
     <button class="tab active" onclick="switchTab('add')">Add Items</button>
     <button class="tab" onclick="switchTab('storage')">My Storage</button>
-    <button class="tab" onclick="switchTab('sim')">Sim</button>
   </div>
 
   <!-- ADD TAB -->
@@ -87,62 +86,6 @@
     <div id="storage-list"></div>
   </div>
 
-  <!-- SIM TAB -->
-  <div id="tab-sim" style="display:none;">
-    <div class="sim-layout">
-
-      <!-- Left: character preview -->
-      <div class="sim-preview-col">
-        <div class="sim-character-card">
-          <div class="sim-character-wrap">
-            <img id="sim-character-img" src="" alt="Character preview" style="display:none;">
-            <div id="sim-character-placeholder" class="sim-placeholder">
-              <div class="sim-placeholder-icon">🧍</div>
-              <div>Equip an item to<br>preview your character</div>
-            </div>
-          </div>
-          <div class="sim-controls">
-            <div class="sim-control-group">
-              <label class="sim-label">Skin</label>
-              <select class="sim-select" id="sim-skin" onchange="updateCharacter()">
-                <option value="2000">Light</option>
-                <option value="2004">Tanned</option>
-                <option value="2010">Dark</option>
-                <option value="2001">Pale</option>
-              </select>
-            </div>
-            <div class="sim-control-group">
-              <label class="sim-label">Stance</label>
-              <select class="sim-select" id="sim-stance" onchange="updateCharacter()">
-                <option value="stand1">Stand</option>
-                <option value="walk1">Walk</option>
-              </select>
-            </div>
-            <div class="sim-control-group">
-              <label class="sim-label">Animated</label>
-              <input type="checkbox" id="sim-animated" class="sim-checkbox" onchange="updateCharacter()" checked>
-            </div>
-          </div>
-          <button class="sim-clear-btn" onclick="clearSim()">Clear All Slots</button>
-        </div>
-      </div>
-
-      <!-- Right: equipment slots -->
-      <div class="sim-slots-col">
-        <div class="sim-slots-section-label">Cash Equip Slots</div>
-        <div class="sim-search-wrap">
-          <span class="search-icon">🔍</span>
-          <input type="text" id="sim-search" placeholder="Search items to equip..." oninput="onSimSearchInput()" autocomplete="off">
-          <div class="spinner" id="sim-spinner"></div>
-        </div>
-        <div id="sim-search-results" class="sim-search-results" style="display:none;"></div>
-
-        <div class="sim-slots-section-label" style="margin-top:1.25rem;">Equipped</div>
-        <div class="sim-slots-grid" id="sim-slots-grid"></div>
-      </div>
-
-    </div>
-  </div>
 
 </div>
 
